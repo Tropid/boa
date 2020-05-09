@@ -11,7 +11,7 @@
 
 use std::ops::Deref;
 
-use gc::Gc;
+use gc::{unsafe_empty_trace, Finalize, Gc, Trace};
 use regex::Regex;
 
 use crate::{
@@ -27,7 +27,7 @@ use crate::{
 mod tests;
 
 /// The internal representation on a `RegExp` object.
-#[derive(Debug)]
+#[derive(Debug, Finalize)]
 struct RegExp {
     /// Regex matcher.
     matcher: Regex,
@@ -55,6 +55,12 @@ struct RegExp {
 
     /// Flag 'u' - Unicode.
     unicode: bool,
+}
+
+// FIXME: Maybe `Rexex` could at some point implement `Trace`, and we need to take that into
+// account.
+unsafe impl Trace for RegExp {
+    unsafe_empty_trace!();
 }
 
 impl InternalState for RegExp {}
