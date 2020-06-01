@@ -159,6 +159,11 @@ impl Display for Value {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum ToIndexError {
+    RangeError,
+}
+
 /// A Javascript value
 #[derive(Trace, Finalize, Debug, Clone)]
 pub enum ValueData {
@@ -372,6 +377,24 @@ impl ValueData {
             }
             _ => None,
         }
+    }
+
+    pub fn to_index(&self) -> Result<i64, ToIndexError> {
+        if self.is_undefined() {
+            return Ok(0);
+        }
+
+        let integer_index = self.to_integer();
+
+        if integer_index < 0 {
+            return Err(ToIndexError::RangeError);
+        }
+
+        // TODO: The spec requires this value to be clamped to (2**53) - 1.
+        //       Currently to_integer returns a 32 bit value so this can never happen.
+        //       See: https://tc39.es/ecma262/#sec-tolength
+
+        Ok(integer_index as i64)
     }
 
     pub fn as_object(&self) -> Option<GcCellRef<'_, Object>> {

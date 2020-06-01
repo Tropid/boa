@@ -145,3 +145,15 @@ fn to_string() {
 
     assert_eq!(forward(&mut engine, "1000n.toString(36)"), "rs");
 }
+
+#[test]
+fn as_int_n() {
+    let realm = Realm::create();
+    let mut engine = Interpreter::new(realm);
+
+    assert_eq!(forward(&mut engine, "BigInt.asIntN(8, 20n)"), "20n");
+    assert_eq!(
+        forward(&mut engine, "BigInt.asIntN(64, 9223372036854775807n)"),
+        "9223372036854775807n"
+    );
+}
