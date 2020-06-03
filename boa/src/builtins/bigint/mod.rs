@@ -205,9 +205,9 @@ impl BigInt {
             }
         };
 
-        Ok(Value::from(
-            bigint % AstBigInt::from(2).pow(&AstBigInt::from(bits as i64)),
-        ))
+        let bigint = bigint % AstBigInt::from(2).pow(&AstBigInt::from(bits as i64));
+
+        Ok(Value::from(bigint))
     }
 
     /// Create a new `Number` object
