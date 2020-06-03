@@ -116,7 +116,7 @@ impl BigInt {
         ))
     }
 
-    // /// `BigInt.prototype.valueOf()`
+    // /// `BigInt.asIntN()`
     // ///
     // /// The `BigInt.asIntN()` method wraps the value of a `BigInt` to a signed integer between `-2**(width - 1)` and `2**(width-1) - 1`
     /// [spec]: https://tc39.es/ecma262/#sec-bigint.asintn
@@ -166,6 +166,50 @@ impl BigInt {
         }
     }
 
+    // /// `BigInt.asUintN()`
+    // ///
+    // /// The `BigInt.asUintN()` method wraps the value of a `BigInt` to an unsigned integer between `0` and `2**(width) - 1`
+    /// [spec]: https://tc39.es/ecma262/#sec-bigint.asuintn
+    /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt/asUintN
+    pub(crate) fn as_uint_n(
+        _this: &mut Value,
+        args: &[Value],
+        ctx: &mut Interpreter,
+    ) -> ResultValue {
+        use std::convert::TryFrom;
+
+        let (bits, bigint) = match args {
+            [bits, bigint] => (bits, bigint),
+            _ => todo!(),
+        };
+
+        let bits = match bits.to_index() {
+            Ok(bits) => bits,
+            Err(_) => {
+                return Err(RangeError::run_new(
+                    "bits must be convertable to a positive integral number",
+                    ctx,
+                )?);
+            }
+        };
+
+        let bits = u32::try_from(bits).unwrap_or(u32::MAX);
+
+        let bigint = match bigint.to_bigint() {
+            Some(bigint) => bigint,
+            None => {
+                return Err(RangeError::run_new(
+                    "bigint must be convertable to BigInt",
+                    ctx,
+                )?);
+            }
+        };
+
+        Ok(Value::from(
+            bigint % AstBigInt::from(2).pow(&AstBigInt::from(bits as i64)),
+        ))
+    }
+
     /// Create a new `Number` object
     pub(crate) fn create(global: &Value) -> Value {
         let prototype = Value::new_object(Some(global));
@@ -177,6 +221,7 @@ impl BigInt {
         let big_int = make_constructor_fn(Self::make_bigint, global, prototype);
 
         make_builtin_fn(Self::as_int_n, "asIntN", &big_int, 1);
+        make_builtin_fn(Self::as_uint_n, "asUintN", &big_int, 1);
 
         big_int
     }

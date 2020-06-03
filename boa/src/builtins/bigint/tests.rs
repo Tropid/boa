@@ -157,3 +157,16 @@ fn as_int_n() {
         "9223372036854775807n"
     );
 }
+
+
+#[test]
+fn as_uint_n() {
+    let realm = Realm::create();
+    let mut engine = Interpreter::new(realm);
+
+    assert_eq!(forward(&mut engine, "BigInt.asUintN(8, 20n)"), "20n");
+    assert_eq!(
+        forward(&mut engine, "BigInt.asIntN(64, 9223372036854775807n)"),
+        "9223372036854775807n"
+    );
+}
