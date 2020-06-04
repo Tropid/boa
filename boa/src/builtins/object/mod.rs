@@ -36,6 +36,9 @@ pub use internal_state::{InternalState, InternalStateCell};
 pub mod internal_methods_trait;
 mod internal_state;
 
+#[cfg(test)]
+mod tests;
+
 /// Static `prototype`, usually set on constructors as a key to point to their respective prototype object.
 pub static PROTOTYPE: &str = "prototype";
 
@@ -471,7 +474,10 @@ impl Object {
     ///
     /// [spec]: https://tc39.es/ecma262/#sec-iscallable
     pub fn is_callable(&self) -> bool {
-        self.func.is_some()
+        match self.func {
+            Some(ref function) => function.is_callable(),
+            None => false,
+        }
     }
 
     /// It determines if Object is a function object with a [[Construct]] internal method.
@@ -480,8 +486,11 @@ impl Object {
     /// - [EcmaScript reference][spec]
     ///
     /// [spec]: https://tc39.es/ecma262/#sec-isconstructor
-    pub fn is_constructor(&self) -> bool {
-        self.func.is_some()
+    pub fn is_constructable(&self) -> bool {
+        match self.func {
+            Some(ref function) => function.is_constructable(),
+            None => false,
+        }
     }
 }
 
@@ -560,9 +569,9 @@ pub fn set_prototype_of(_: &mut Value, args: &[Value], _: &mut Interpreter) -> R
 }
 
 /// Define a property in an object
-pub fn define_property(_: &mut Value, args: &[Value], _: &mut Interpreter) -> ResultValue {
+pub fn define_property(_: &mut Value, args: &[Value], ctx: &mut Interpreter) -> ResultValue {
     let obj = args.get(0).expect("Cannot get object");
-    let prop = String::from(args.get(1).expect("Cannot get object"));
+    let prop = ctx.to_string(args.get(1).expect("Cannot get object"))?;
     let desc = Property::from(args.get(2).expect("Cannot get object"));
     obj.set_property(prop, desc);
     Ok(Value::undefined())
@@ -593,18 +602,22 @@ pub fn to_string(this: &mut Value, _: &[Value], _: &mut Interpreter) -> ResultVa
 ///
 /// [spec]: https://tc39.es/ecma262/#sec-object.prototype.hasownproperty
 /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwnProperty
-pub fn has_own_property(this: &mut Value, args: &[Value], _: &mut Interpreter) -> ResultValue {
+pub fn has_own_property(this: &mut Value, args: &[Value], ctx: &mut Interpreter) -> ResultValue {
     let prop = if args.is_empty() {
         None
     } else {
-        Some(String::from(args.get(0).expect("Cannot get object")))
+        Some(ctx.to_string(args.get(0).expect("Cannot get object"))?)
     };
-    Ok(Value::from(
-        prop.is_some()
-            && this
-                .get_property(&prop.expect("Cannot get object"))
-                .is_some(),
-    ))
+    let own_property = this
+        .as_object()
+        .as_deref()
+        .expect("Cannot get THIS object")
+        .get_own_property(&Value::string(&prop.expect("cannot get prop")));
+    if own_property.is_none() {
+        Ok(Value::from(false))
+    } else {
+        Ok(Value::from(true))
+    }
 }
 
 /// Create a new `Object` object.
@@ -614,7 +627,7 @@ pub fn create(global: &Value) -> Value {
     make_builtin_fn(has_own_property, "hasOwnProperty", &prototype, 0);
     make_builtin_fn(to_string, "toString", &prototype, 0);
 
-    let object = make_constructor_fn(make_object, global, prototype);
+    let object = make_constructor_fn("Object", 1, make_object, global, prototype, true);
 
     object.set_field("length", Value::from(1));
     make_builtin_fn(set_prototype_of, "setPrototypeOf", &object, 2);

@@ -1,4 +1,4 @@
-//! Builtins live here, such as Object, String, Math etc
+//! Builtins live here, such as Object, String, Math, etc.
 
 pub mod array;
 pub mod bigint;
@@ -20,7 +20,7 @@ pub(crate) use self::{
     array::Array,
     bigint::BigInt,
     boolean::Boolean,
-    error::{Error, RangeError},
+    error::{Error, RangeError, TypeError},
     number::Number,
     regexp::RegExp,
     string::String,
@@ -44,4 +44,5 @@ pub fn init(global: &Value) {
     console::init(global);
     Error::init(global);
     RangeError::init(global);
+    TypeError::init(global);
 }

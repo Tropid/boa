@@ -23,9 +23,10 @@ use crate::{
 pub(crate) mod range;
 // mod reference;
 // mod syntax;
-// mod type_err;
+pub(crate) mod r#type;
 // mod uri;
 
+pub(crate) use self::r#type::TypeError;
 pub(crate) use self::range::RangeError;
 
 /// Built-in `Error` object.
@@ -48,7 +49,7 @@ impl Error {
         // This value is used by console.log and other routines to match Object type
         // to its Javascript Identifier (global constructor method name)
         this.set_kind(ObjectKind::Error);
-        Ok(Value::undefined())
+        Err(this.clone())
     }
 
     /// `Error.prototype.toString()`
@@ -72,9 +73,10 @@ impl Error {
     pub(crate) fn create(global: &Value) -> Value {
         let prototype = Value::new_object(Some(global));
         prototype.set_field("message", Value::from(""));
-        prototype.set_field("name", Value::from("Error"));
+
         make_builtin_fn(Self::to_string, "toString", &prototype, 0);
-        make_constructor_fn(Self::make_error, global, prototype)
+
+        make_constructor_fn("Error", 1, Self::make_error, global, prototype, true)
     }
 
     /// Initialise the global object with the `Error` object.
