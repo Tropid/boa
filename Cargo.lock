@@ -9,6 +9,7 @@ dependencies = [
  "gc",
  "jemallocator",
  "num-bigint",
+ "num-integer",
  "num-traits",
  "rand",
  "regex",

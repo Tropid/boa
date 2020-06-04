@@ -20,7 +20,7 @@ use crate::{
     exec::Interpreter,
     syntax::ast::bigint::BigInt as AstBigInt,
 };
-use super::RangeError;
+use super::value::ToIndexError;
 
 #[cfg(test)]
 mod tests;
@@ -135,36 +135,7 @@ impl BigInt {
         args: &[Value],
         ctx: &mut Interpreter,
     ) -> ResultValue {
-        use std::convert::TryFrom;
-
-        let (bits, bigint) = match args {
-            [bits, bigint] => (bits, bigint),
-            _ => todo!(),
-        };
-
-        let bits = match bits.to_index() {
-            Ok(bits) => bits,
-            Err(_) => {
-                return Err(RangeError::run_new(
-                    "bits must be convertable to a positive integral number",
-                    ctx,
-                )?);
-            }
-        };
-
-        let bits = u32::try_from(bits).unwrap_or(u32::MAX);
-
-        let bigint = match bigint.to_bigint() {
-            Some(bigint) => bigint,
-            None => {
-                return Err(RangeError::run_new(
-                    "bigint must be convertable to BigInt",
-                    ctx,
-                )?);
-            }
-        };
-
-        let modulo = bigint % AstBigInt::from(2).pow(&AstBigInt::from(bits as i64));
+        let (modulo, bits) = Self::as_bigint_helper(args, ctx)?;
 
         if modulo >= AstBigInt::from(2).pow(&AstBigInt::from(bits as i64 - 1)) {
             Ok(Value::from(
@@ -185,38 +156,44 @@ impl BigInt {
         args: &[Value],
         ctx: &mut Interpreter,
     ) -> ResultValue {
+        let (modulo, _) = Self::as_bigint_helper(args, ctx)?;
+
+        Ok(Value::from(modulo))
+    }
+
+    fn as_bigint_helper(args: &[Value], ctx: &mut Interpreter) -> Result<(AstBigInt, u32), Value> {
         use std::convert::TryFrom;
 
-        let (bits, bigint) = match args {
-            [bits, bigint] => (bits, bigint),
-            _ => todo!(),
-        };
+        let undefined_value = Value::undefined();
 
-        let bits = match bits.to_index() {
+        let bits_arg = args.get(0).unwrap_or(&undefined_value);
+        let bigint_arg = args.get(1).unwrap_or(&undefined_value);
+
+        let bits = match bits_arg.to_index() {
             Ok(bits) => bits,
-            Err(_) => {
-                return Err(RangeError::run_new(
+            Err(ToIndexError::RangeError) => {
+                return Err(ctx.throw_range_error(
                     "bits must be convertable to a positive integral number",
-                    ctx,
                 )?);
+            },
+            Err(ToIndexError::TypeError) => {
+                return Err(ctx.throw_type_error("wrong type")?);
             }
         };
 
         let bits = u32::try_from(bits).unwrap_or(u32::MAX);
 
-        let bigint = match bigint.to_bigint() {
+        let bigint = match bigint_arg.to_bigint() {
             Some(bigint) => bigint,
             None => {
-                return Err(RangeError::run_new(
-                    "bigint must be convertable to BigInt",
-                    ctx,
-                )?);
+                return Err(ctx.throw_range_error("bigint must be convertable to BigInt")?);
             }
         };
 
-        let bigint = bigint % AstBigInt::from(2).pow(&AstBigInt::from(bits as i64));
-
-        Ok(Value::from(bigint))
+        Ok((
+            bigint.mod_floor(&AstBigInt::from(2).pow(&AstBigInt::from(bits as i64))),
+            bits,
+        ))
     }
 
     /// Create a new `Number` object

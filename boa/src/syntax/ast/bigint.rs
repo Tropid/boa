@@ -41,9 +41,15 @@ impl BigInt {
                 other
                     .0
                     .to_biguint()
-                    .expect("RangeError: \"BigInt negative exponent\""),
+                    .unwrap_or_default(), // TODO: is this correct?
             ),
         )
+    }
+
+    #[inline]
+    pub fn mod_floor(self, other: &Self) -> Self {
+        use num_integer::Integer;
+        Self(self.0.mod_floor(other))
     }
 
     /// Converts the BigInt to a f64 type.

@@ -155,15 +155,10 @@ impl Deref for Value {
     }
 }
 
-impl Display for Value {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        Display::fmt(&self.0, f)
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ToIndexError {
     RangeError,
+    TypeError,
 }
 
 /// A Javascript value
@@ -284,6 +279,14 @@ impl ValueData {
         }
     }
 
+    /// Returns true if the value is a BigInt
+    pub fn is_bigint(&self) -> bool {
+        match *self {
+            Self::BigInt(_) => true,
+            _ => false,
+        }
+    }
+
     /// Returns true if the value is a string
     pub fn is_string(&self) -> bool {
         match *self {
@@ -384,6 +387,12 @@ impl ValueData {
     pub fn to_index(&self) -> Result<i64, ToIndexError> {
         if self.is_undefined() {
             return Ok(0);
+        }
+
+        // TODO: A lot more types should return a type error, see
+        // https://github.com/tc39/test262/blob/master/test/built-ins/BigInt/asUintN/bits-toindex-errors.js
+        if self.is_bigint() {
+            return Err(ToIndexError::TypeError);
         }
 
         let integer_index = self.to_integer();

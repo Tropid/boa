@@ -151,12 +151,12 @@ fn as_int_n() {
     let realm = Realm::create();
     let mut engine = Interpreter::new(realm);
 
-    assert_eq!(forward(&mut engine, "BigInt.asIntN(8, 20n)"), "20n");
-    assert_eq!(
-        forward(&mut engine, "BigInt.asIntN(62, 2n ** (63n - 1n) - 1n)"),
-        "-1n"
-    );
-    assert_eq!(forward(&mut engine, "BigInt.asIntN(32, -20n)"), "-20n");
+    assert_eq!(forward(&mut engine, "BigInt.asIntN(0, 1n)"), "0n");
+    assert_eq!(forward(&mut engine, "BigInt.asIntN(1, 1n)"), "-1n");
+    assert_eq!(forward(&mut engine, "BigInt.asIntN(3, 10n)"), "2n");
+    assert_eq!(forward(&mut engine, "BigInt.asIntN({}, 1n)"), "0n");
+    assert_eq!(forward(&mut engine, "BigInt.asIntN(2, 0n)"), "0n");
+    assert_eq!(forward(&mut engine, "BigInt.asIntN(2, -0n)"), "0n");
 }
 
 #[test]
@@ -164,10 +164,24 @@ fn as_uint_n() {
     let realm = Realm::create();
     let mut engine = Interpreter::new(realm);
 
-    assert_eq!(
-        forward(&mut engine, "BigInt.asUintN(8, 2n ** 8n - 1n)"),
-        "255n"
-    );
-    assert_eq!(forward(&mut engine, "BigInt.asUintN(8, 2n ** 8n)"), "0n");
-    assert_eq!(forward(&mut engine, "BigInt.asUintN(8, -1n)"), "255n");
+    assert_eq!(forward(&mut engine, "BigInt.asUintN(0, -2n)"), "0n");
+    assert_eq!(forward(&mut engine, "BigInt.asUintN(0, -1n)"), "0n");
+    assert_eq!(forward(&mut engine, "BigInt.asUintN(0, 0n)"), "0n");
+    assert_eq!(forward(&mut engine, "BigInt.asUintN(0, 1n)"), "0n");
+    assert_eq!(forward(&mut engine, "BigInt.asUintN(0, 2n)"), "0n");
+
+    assert_eq!(forward(&mut engine, "BigInt.asUintN(1, -3n)"), "1n");
+    assert_eq!(forward(&mut engine, "BigInt.asUintN(1, -2n)"), "0n");
+    assert_eq!(forward(&mut engine, "BigInt.asUintN(1, -1n)"), "1n");
+    assert_eq!(forward(&mut engine, "BigInt.asUintN(1, 0n)"), "0n");
+    assert_eq!(forward(&mut engine, "BigInt.asUintN(1, 1n)"), "1n");
+    assert_eq!(forward(&mut engine, "BigInt.asUintN(1, 2n)"), "0n");
+    assert_eq!(forward(&mut engine, "BigInt.asUintN(1, 3n)"), "1n");
+
+    assert_eq!(forward(&mut engine, "BigInt.asUintN(1, -123456789012345678901n)"), "1n");
+    assert_eq!(forward(&mut engine, "BigInt.asUintN(1, -123456789012345678900n)"), "0n");
+    assert_eq!(forward(&mut engine, "BigInt.asUintN(1, 123456789012345678900n)"), "0n");
+    assert_eq!(forward(&mut engine, "BigInt.asUintN(1, 123456789012345678901n)"), "1n");
+
+    assert_eq!(forward(&mut engine, "BigInt.asUintN(200, 0xbffffffffffffffffffffffffffffffffffffffffffffffffffn)"), "0x0ffffffffffffffffffffffffffffffffffffffffffffffffffn");
 }
