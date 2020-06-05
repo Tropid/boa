@@ -157,6 +157,54 @@ fn as_int_n() {
     assert_eq!(forward(&mut engine, "BigInt.asIntN({}, 1n)"), "0n");
     assert_eq!(forward(&mut engine, "BigInt.asIntN(2, 0n)"), "0n");
     assert_eq!(forward(&mut engine, "BigInt.asIntN(2, -0n)"), "0n");
+
+    assert_eq!(
+        forward(&mut engine, "BigInt.asIntN(2, -123456789012345678901n)"),
+        "-1n"
+    );
+    assert_eq!(
+        forward(&mut engine, "BigInt.asIntN(2, -123456789012345678900n)"),
+        "0n"
+    );
+
+    assert_eq!(
+        forward(&mut engine, "BigInt.asIntN(2, 123456789012345678900n)"),
+        "0n"
+    );
+    assert_eq!(
+        forward(&mut engine, "BigInt.asIntN(2, 123456789012345678901n)"),
+        "1n"
+    );
+
+    assert_eq!(
+        forward(
+            &mut engine,
+            "BigInt.asIntN(200, 0xcffffffffffffffffffffffffffffffffffffffffffffffffffn)"
+        ),
+        "-1n"
+    );
+    assert_eq!(
+        forward(
+            &mut engine,
+            "BigInt.asIntN(201, 0xcffffffffffffffffffffffffffffffffffffffffffffffffffn)"
+        ),
+        "1606938044258990275541962092341162602522202993782792835301375n"
+    );
+
+    assert_eq!(
+        forward(
+            &mut engine,
+            "BigInt.asIntN(200, 0xc89e081df68b65fedb32cffea660e55df9605650a603ad5fc54n)"
+        ),
+        "-741470203160010616172516490008037905920749803227695190508460n"
+    );
+    assert_eq!(
+        forward(
+            &mut engine,
+            "BigInt.asIntN(201, 0xc89e081df68b65fedb32cffea660e55df9605650a603ad5fc54n)"
+        ),
+        "865467841098979659369445602333124696601453190555097644792916n"
+    );
 }
 
 #[test]
@@ -178,10 +226,35 @@ fn as_uint_n() {
     assert_eq!(forward(&mut engine, "BigInt.asUintN(1, 2n)"), "0n");
     assert_eq!(forward(&mut engine, "BigInt.asUintN(1, 3n)"), "1n");
 
-    assert_eq!(forward(&mut engine, "BigInt.asUintN(1, -123456789012345678901n)"), "1n");
-    assert_eq!(forward(&mut engine, "BigInt.asUintN(1, -123456789012345678900n)"), "0n");
-    assert_eq!(forward(&mut engine, "BigInt.asUintN(1, 123456789012345678900n)"), "0n");
-    assert_eq!(forward(&mut engine, "BigInt.asUintN(1, 123456789012345678901n)"), "1n");
+    assert_eq!(
+        forward(&mut engine, "BigInt.asUintN(1, -123456789012345678901n)"),
+        "1n"
+    );
+    assert_eq!(
+        forward(&mut engine, "BigInt.asUintN(1, -123456789012345678900n)"),
+        "0n"
+    );
+    assert_eq!(
+        forward(&mut engine, "BigInt.asUintN(1, 123456789012345678900n)"),
+        "0n"
+    );
+    assert_eq!(
+        forward(&mut engine, "BigInt.asUintN(1, 123456789012345678901n)"),
+        "1n"
+    );
 
-    assert_eq!(forward(&mut engine, "BigInt.asUintN(200, 0xbffffffffffffffffffffffffffffffffffffffffffffffffffn)"), "0x0ffffffffffffffffffffffffffffffffffffffffffffffffffn");
+    assert_eq!(
+        forward(
+            &mut engine,
+            "BigInt.asUintN(200, 0xbffffffffffffffffffffffffffffffffffffffffffffffffffn)"
+        ),
+        "1606938044258990275541962092341162602522202993782792835301375n"
+    );
+    assert_eq!(
+        forward(
+            &mut engine,
+            "BigInt.asUintN(201, 0xbffffffffffffffffffffffffffffffffffffffffffffffffffn)"
+        ),
+        "3213876088517980551083924184682325205044405987565585670602751n"
+    );
 }
