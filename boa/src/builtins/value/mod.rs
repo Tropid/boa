@@ -6,20 +6,20 @@
 mod tests;
 
 use crate::builtins::{
-    function::Function,
     object::{
         internal_methods_trait::ObjectInternalMethods, InternalState, InternalStateCell, Object,
         ObjectKind, INSTANCE_PROTOTYPE, PROTOTYPE,
     },
     property::Property,
+    BigInt, Function,
 };
-use crate::syntax::ast::bigint::BigInt;
+use crate::BoaProfiler;
+
 use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
 use serde_json::{map::Map, Number as JSONNumber, Value as JSONValue};
 use std::{
     any::Any,
     collections::HashSet,
-    convert::TryFrom,
     f64::NAN,
     fmt::{self, Display},
     ops::{Add, BitAnd, BitOr, BitXor, Deref, DerefMut, Div, Mul, Neg, Not, Rem, Shl, Shr, Sub},
@@ -28,9 +28,12 @@ use std::{
 
 pub mod conversions;
 pub mod display;
+pub mod equality;
 pub mod operations;
+
 pub use conversions::*;
 pub(crate) use display::display_obj;
+pub use equality::*;
 pub use operations::*;
 
 /// The result of a Javascript expression is represented like this so it can succeed (`Ok`) or fail (`Err`)
@@ -124,6 +127,7 @@ impl Value {
 
     /// Returns a new empty object
     pub fn new_object(global: Option<&Value>) -> Self {
+        let _timer = BoaProfiler::global().start_event("new_object", "value");
         if let Some(global) = global {
             let object_prototype = global.get_field("Object").get_field(PROTOTYPE);
 
@@ -225,7 +229,7 @@ impl ValueData {
         }
     }
 
-    /// Returns true if the value is undefined
+    /// Returns true if the value is undefined.
     pub fn is_undefined(&self) -> bool {
         match *self {
             Self::Undefined => true,
@@ -233,7 +237,7 @@ impl ValueData {
         }
     }
 
-    /// Returns true if the value is null
+    /// Returns true if the value is null.
     pub fn is_null(&self) -> bool {
         match *self {
             Self::Null => true,
@@ -241,7 +245,7 @@ impl ValueData {
         }
     }
 
-    /// Returns true if the value is null or undefined
+    /// Returns true if the value is null or undefined.
     pub fn is_null_or_undefined(&self) -> bool {
         match *self {
             Self::Null | Self::Undefined => true,
@@ -249,7 +253,7 @@ impl ValueData {
         }
     }
 
-    /// Returns true if the value is a 64-bit floating-point number
+    /// Returns true if the value is a 64-bit floating-point number.
     pub fn is_double(&self) -> bool {
         match *self {
             Self::Rational(_) => true,
@@ -279,14 +283,6 @@ impl ValueData {
         }
     }
 
-    /// Returns true if the value is a BigInt
-    pub fn is_bigint(&self) -> bool {
-        match *self {
-            Self::BigInt(_) => true,
-            _ => false,
-        }
-    }
-
     /// Returns true if the value is a string
     pub fn is_string(&self) -> bool {
         match *self {
@@ -299,6 +295,14 @@ impl ValueData {
     pub fn is_boolean(&self) -> bool {
         match *self {
             Self::Boolean(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Returns true if the value is a bigint
+    pub fn is_bigint(&self) -> bool {
+        match *self {
+            Self::BigInt(_) => true,
             _ => false,
         }
     }
@@ -363,51 +367,6 @@ impl ValueData {
         }
     }
 
-    /// Helper function.
-    pub fn to_bigint(&self) -> Option<BigInt> {
-        match self {
-            Self::String(ref string) => string_to_bigint(string),
-            Self::Boolean(true) => Some(BigInt::from(1)),
-            Self::Boolean(false) | Self::Null => Some(BigInt::from(0)),
-            Self::Rational(num) => BigInt::try_from(*num).ok(),
-            Self::Integer(num) => Some(BigInt::from(*num)),
-            ValueData::BigInt(b) => Some(b.clone()),
-            ValueData::Object(ref o) => {
-                let object = (o).deref().borrow();
-                if object.kind == ObjectKind::BigInt {
-                    object.get_internal_slot("BigIntData").to_bigint()
-                } else {
-                    None
-                }
-            }
-            _ => None,
-        }
-    }
-
-    pub fn to_index(&self) -> Result<i64, ToIndexError> {
-        if self.is_undefined() {
-            return Ok(0);
-        }
-
-        // TODO: A lot more types should return a type error, see
-        // https://github.com/tc39/test262/blob/master/test/built-ins/BigInt/asUintN/bits-toindex-errors.js
-        if self.is_bigint() {
-            return Err(ToIndexError::TypeError);
-        }
-
-        let integer_index = self.to_integer();
-
-        if integer_index < 0 {
-            return Err(ToIndexError::RangeError);
-        }
-
-        // TODO: The spec requires this value to be clamped to (2**53) - 1.
-        //       Currently to_integer returns a 32 bit value so this can never happen.
-        //       See: https://tc39.es/ecma262/#sec-tolength
-
-        Ok(integer_index as i64)
-    }
-
     pub fn as_object(&self) -> Option<GcCellRef<'_, Object>> {
         match *self {
             ValueData::Object(ref o) => Some(o.borrow()),
@@ -431,6 +390,7 @@ impl ValueData {
     ///
     /// A copy of the Property is returned.
     pub fn get_property(&self, field: &str) -> Option<Property> {
+        let _timer = BoaProfiler::global().start_event("Value::get_property", "value");
         // Spidermonkey has its own GetLengthProperty: https://searchfox.org/mozilla-central/source/js/src/vm/Interpreter-inl.h#154
         // This is only for primitive strings, String() objects have their lengths calculated in string.rs
         if self.is_string() && field == "length" {
@@ -477,6 +437,7 @@ impl ValueData {
         writable: Option<bool>,
         configurable: Option<bool>,
     ) {
+        let _timer = BoaProfiler::global().start_event("Value::update_property", "value");
         let obj: Option<Object> = match self {
             Self::Object(ref obj) => Some(obj.borrow_mut().deref_mut().clone()),
             _ => None,
@@ -497,6 +458,7 @@ impl ValueData {
     ///
     /// Returns a copy of the Property.
     pub fn get_internal_slot(&self, field: &str) -> Value {
+        let _timer = BoaProfiler::global().start_event("Value::get_internal_slot", "value");
         let obj: Object = match *self {
             Self::Object(ref obj) => {
                 let hash = obj.clone();
@@ -522,6 +484,7 @@ impl ValueData {
     where
         F: Into<Value>,
     {
+        let _timer = BoaProfiler::global().start_event("Value::get_field", "value");
         match *field.into() {
             // Our field will either be a String or a Symbol
             Self::String(ref s) => {
@@ -620,6 +583,7 @@ impl ValueData {
 
     /// Check to see if the Value has the field, mainly used by environment records
     pub fn has_field(&self, field: &str) -> bool {
+        let _timer = BoaProfiler::global().start_event("Value::has_field", "value");
         self.get_property(field).is_some()
     }
 
@@ -630,6 +594,7 @@ impl ValueData {
         F: Into<Value>,
         V: Into<Value>,
     {
+        let _timer = BoaProfiler::global().start_event("Value::set_field", "value");
         let field = field.into();
         let val = val.into();
 
@@ -659,6 +624,7 @@ impl ValueData {
 
     /// Set the private field in the value
     pub fn set_internal_slot(&self, field: &str, val: Value) -> Value {
+        let _timer = BoaProfiler::global().start_event("Value::set_internal_slot", "exec");
         if let Self::Object(ref obj) = *self {
             obj.borrow_mut()
                 .internal_slots
@@ -804,6 +770,7 @@ impl ValueData {
     ///
     /// https://tc39.es/ecma262/#sec-typeof-operator
     pub fn get_type(&self) -> &'static str {
+        let _timer = BoaProfiler::global().start_event("Value::get_type", "value");
         match *self {
             Self::Rational(_) | Self::Integer(_) => "number",
             Self::String(_) => "string",

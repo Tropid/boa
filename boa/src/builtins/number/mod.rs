@@ -26,6 +26,7 @@ use crate::{
         value::{ResultValue, Value, ValueData},
     },
     exec::Interpreter,
+    BoaProfiler,
 };
 use num_traits::float::FloatCore;
 use std::{borrow::Borrow, ops::Deref};
@@ -435,6 +436,7 @@ impl Number {
     /// Initialise the `Number` object on the global object.
     #[inline]
     pub(crate) fn init(global: &Value) {
+        let _timer = BoaProfiler::global().start_event("number", "init");
         global.set_field("Number", Self::create(global));
     }
 
@@ -443,8 +445,8 @@ impl Number {
     ///
     /// https://tc39.es/ecma262/#sec-numeric-types-number-equal
     #[allow(clippy::float_cmp)]
-    pub(crate) fn equals(a: f64, b: f64) -> bool {
-        a == b
+    pub(crate) fn equal(x: f64, y: f64) -> bool {
+        x == y
     }
 
     /// The abstract operation Number::sameValue takes arguments
@@ -474,11 +476,11 @@ impl Number {
     ///
     /// https://tc39.es/ecma262/#sec-numeric-types-number-sameValueZero
     #[allow(clippy::float_cmp)]
-    pub(crate) fn same_value_zero(a: f64, b: f64) -> bool {
-        if a.is_nan() && b.is_nan() {
+    pub(crate) fn same_value_zero(x: f64, y: f64) -> bool {
+        if x.is_nan() && y.is_nan() {
             return true;
         }
 
-        a == b
+        x == y
     }
 }
