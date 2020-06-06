@@ -92,21 +92,3 @@ fn abstract_equality_comparison() {
     assert_eq!(forward(&mut engine, "'foo' == NaN"), "false");
     assert_eq!(forward(&mut engine, "NaN == NaN"), "false");
 }
-
-#[test]
-fn to_index_when_undefined_returns_zero() {
-    let value = ValueData::Undefined;
-
-    let result = value.to_index();
-
-    assert_eq!(result, Ok(0));
-}
-
-#[test]
-fn to_index_when_negative_returns_range_error() {
-    let value = ValueData::Integer(-1);
-
-    let error = value.to_index();
-
-    assert_eq!(error, Err(ToIndexError::RangeError));
-}

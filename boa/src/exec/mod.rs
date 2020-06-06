@@ -194,6 +194,32 @@ impl Interpreter {
         }
     }
 
+    pub fn to_index(&mut self, value: &Value) -> Result<usize, Value> {
+        if value.is_undefined() {
+            return Ok(0);
+        }
+
+        // TODO: A lot more types should return a type error, see
+        // https://github.com/tc39/test262/blob/master/test/built-ins/BigInt/asUintN/bits-toindex-errors.js
+        if value.is_bigint() {
+            self.throw_type_error(format!("The value {} cannot be converted to an index because it is a BigInt", value))?;
+            unreachable!();
+        }
+
+        let integer_index = value.to_integer();
+
+        if integer_index < 0 {
+            self.throw_range_error(format!("Integer index must be >= 0"))?;
+            unreachable!();
+        }
+
+        // TODO: The spec requires this value to be clamped to (2**53) - 1.
+        //       Currently to_integer returns a 32 bit value so this can never happen.
+        //       See: https://tc39.es/ecma262/#sec-tolength
+
+        Ok(integer_index as usize)
+    }
+
     /// Converts an array object into a rust vector of values.
     ///
     /// This is useful for the spread operator, for any other object an `Err` is returned

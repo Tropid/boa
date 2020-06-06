@@ -159,12 +159,6 @@ impl Deref for Value {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum ToIndexError {
-    RangeError,
-    TypeError,
-}
-
 /// A Javascript value
 #[derive(Trace, Finalize, Debug, Clone)]
 pub enum ValueData {

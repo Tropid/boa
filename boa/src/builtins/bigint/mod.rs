@@ -20,7 +20,6 @@ use crate::{
     exec::Interpreter,
     BoaProfiler,
 };
-use super::value::ToIndexError;
 
 use gc::{unsafe_empty_trace, Finalize, Trace};
 
@@ -159,9 +158,9 @@ impl BigInt {
     ) -> ResultValue {
         let (modulo, bits) = Self::as_bigint_helper(args, ctx)?;
 
-        if modulo >= AstBigInt::from(2).pow(&AstBigInt::from(bits as i64 - 1)) {
+        if modulo >= BigInt::from(2).pow(&BigInt::from(bits as i64 - 1)) {
             Ok(Value::from(
-                modulo - AstBigInt::from(2).pow(&AstBigInt::from(bits as i64)),
+                modulo - BigInt::from(2).pow(&BigInt::from(bits as i64)),
             ))
         } else {
             Ok(Value::from(modulo))
@@ -183,7 +182,7 @@ impl BigInt {
         Ok(Value::from(modulo))
     }
 
-    fn as_bigint_helper(args: &[Value], ctx: &mut Interpreter) -> Result<(AstBigInt, u32), Value> {
+    fn as_bigint_helper(args: &[Value], ctx: &mut Interpreter) -> Result<(BigInt, u32), Value> {
         use std::convert::TryFrom;
 
         let undefined_value = Value::undefined();
@@ -191,29 +190,13 @@ impl BigInt {
         let bits_arg = args.get(0).unwrap_or(&undefined_value);
         let bigint_arg = args.get(1).unwrap_or(&undefined_value);
 
-        let bits = match bits_arg.to_index() {
-            Ok(bits) => bits,
-            Err(ToIndexError::RangeError) => {
-                return Err(ctx.throw_range_error(
-                    "bits must be convertable to a positive integral number",
-                )?);
-            },
-            Err(ToIndexError::TypeError) => {
-                return Err(ctx.throw_type_error("wrong type")?);
-            }
-        };
-
+        let bits = ctx.to_index(bits_arg)?;
         let bits = u32::try_from(bits).unwrap_or(u32::MAX);
 
-        let bigint = match bigint_arg.to_bigint() {
-            Some(bigint) => bigint,
-            None => {
-                return Err(ctx.throw_range_error("bigint must be convertable to BigInt")?);
-            }
-        };
+        let bigint = ctx.to_bigint(bigint_arg)?;
 
         Ok((
-            bigint.mod_floor(&AstBigInt::from(2).pow(&AstBigInt::from(bits as i64))),
+            bigint.mod_floor(&BigInt::from(2).pow(&BigInt::from(bits as i64))),
             bits,
         ))
     }
