@@ -13,7 +13,7 @@ impl BigInt {
                 other
                     .0
                     .to_biguint()
-                    .unwrap_or_default(), // TODO: is this correct?,
+                    .expect("RangeError: \"BigInt negative exponent\""),
             ),
         )
     }

@@ -158,7 +158,7 @@ impl BigInt {
     ) -> ResultValue {
         let (modulo, bits) = Self::as_bigint_helper(args, ctx)?;
 
-        if modulo >= BigInt::from(2).pow(&BigInt::from(bits as i64 - 1)) {
+        if bits > 0 && modulo >= BigInt::from(2).pow(&BigInt::from(bits as i64 - 1)) {
             Ok(Value::from(
                 modulo - BigInt::from(2).pow(&BigInt::from(bits as i64)),
             ))

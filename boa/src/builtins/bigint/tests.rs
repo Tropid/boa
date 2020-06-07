@@ -332,3 +332,19 @@ fn as_uint_n() {
         "3213876088517980551083924184682325205044405987565585670602751n"
     );
 }
+
+#[test]
+fn as_uint_n_errors() {
+    let realm = Realm::create();
+    let mut engine = Interpreter::new(realm);
+
+    assert_throws(&mut engine, "BigInt.asUintN(-1, 0n)", "RangeError");
+    assert_throws(&mut engine, "BigInt.asUintN(-2.5, 0n)", "RangeError");
+    assert_throws(&mut engine, "BigInt.asUintN(9007199254740992, 0n)", "RangeError");
+    assert_throws(&mut engine, "BigInt.asUintN(0n, 0n)", "TypeError");
+}
+
+fn assert_throws(engine: &mut Interpreter, src: &str, error_type: &str) {
+    let result = forward(engine, src);
+    assert!(result.contains(error_type));
+}

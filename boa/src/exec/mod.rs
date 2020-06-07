@@ -206,18 +206,49 @@ impl Interpreter {
             unreachable!();
         }
 
-        let integer_index = value.to_integer();
+        let integer_index = self.to_integer(value)?;
 
         if integer_index < 0 {
             self.throw_range_error(format!("Integer index must be >= 0"))?;
             unreachable!();
         }
 
-        // TODO: The spec requires this value to be clamped to (2**53) - 1.
-        //       Currently to_integer returns a 32 bit value so this can never happen.
-        //       See: https://tc39.es/ecma262/#sec-tolength
+        if integer_index > 2i64.pow(53) - 1 {
+            self.throw_range_error("Integer index must be less than 2**(53) - 1")?;
+            unreachable!()
+        }
 
         Ok(integer_index as usize)
+    }
+
+    pub fn to_integer(&mut self, value: &Value) -> Result<i64, Value> {
+        let number = self.to_number(value)?;
+
+        if number.is_nan() {
+            return Ok(0);
+        }
+
+        return Ok(number as i64);
+    }
+
+    pub fn to_number(&mut self, value: &Value) -> Result<f64, Value> {
+        match *value.deref().borrow() {
+            ValueData::Null => Ok(0.0),
+            ValueData::Undefined => Ok(f64::NAN),
+            ValueData::Boolean(b) => Ok(if b { 1.0 } else { 0.0 }),
+            ValueData::String(_) => todo!(),
+            ValueData::Rational(number) => Ok(number),
+            ValueData::Integer(integer) => Ok(integer as f64),
+            ValueData::Symbol(_) => {self.throw_type_error("argument must not be a symbol")?; unreachable!() },
+            ValueData::BigInt(_) => {self.throw_type_error("argument must not be a bigint")?; unreachable!() },
+            ValueData::Object(_) => {
+                let prim_value = self.to_primitive(&mut (value.clone()), Some("number"));
+                Ok(self.to_string(&prim_value)
+                    .expect("cannot convert value to string")
+                    .parse::<f64>()
+                    .expect("cannot parse value to f64"))
+            },
+        }
     }
 
     /// Converts an array object into a rust vector of values.
@@ -401,7 +432,8 @@ impl Interpreter {
                     .expect("cannot convert value to string")
                     .parse::<f64>()
                     .expect("cannot parse value to f64")
-            }
+            },
+            ValueData::Undefined => f64::NAN,
             _ => {
                 // TODO: Make undefined?
                 f64::from(0)
